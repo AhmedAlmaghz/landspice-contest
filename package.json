@@ -1,27 +1,44 @@
 {
   "name": "landspice-contest",
-  "version": "0.1.0",
+  "version": "1.0.5",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:init": "node -e \"require('./src/lib/database').initializeDatabase()\"",
+    "db:reset": "rm -f contest.db && npm run db:init",
+    "test": "node tests/validation.test.js && node tests/api.test.js",
+    "test:validation": "node tests/validation.test.js",
+    "test:api": "node tests/api.test.js",
+    "test:all": "npm test",
+    "clean": "rm -rf .next node_modules",
+    "docker:build": "docker build -t landspice-contest .",
+    "docker:run": "docker-compose up -d",
+    "docker:stop": "docker-compose down",
+    "deploy:vercel": "vercel --prod"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-progress": "^1.1.7",
+    "@radix-ui/react-toast": "^1.2.15",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.4.1",
+    "lucide-react": "^0.545.0",
+    "next": "15.5.4",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "next": "15.5.4"
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
-    "@eslint/eslintrc": "^3"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }
