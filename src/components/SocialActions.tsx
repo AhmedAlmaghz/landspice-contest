@@ -15,29 +15,35 @@ interface SocialActionsProps {
   onProgressUpdate: (participant: Participant) => void;
 }
 
-export default function SocialActions({ participant, settings, onProgressUpdate }: SocialActionsProps) {
-  const { 
-    completedCount, 
-    progressPercentage, 
+export default function SocialActions({ participant: initialParticipant, settings, onProgressUpdate }: SocialActionsProps) {
+  const {
+    participant: currentParticipant, // البيانات المحدثة من الـ hook
+    completedCount,
+    progressPercentage,
     isPlatformCompleted,
-    updateProgress 
-  } = useFollowProgress(participant);
+    updateProgress,
+    isUpdating,
+    error
+  } = useFollowProgress(initialParticipant);
+
+  // استخدام البيانات المحدثة في باقي المكون
+  const participant = currentParticipant;
 
   // الحصول على رابط المنصة من الإعدادات
   const getPlatformUrl = (platformId: string): string => {
     switch (platformId) {
       case 'facebook':
-        return settings?.facebook_url || 'https://facebook.com/yourpage';
+        return settings?.facebook_url || 'https://facebook.com/LandSpice25';
       case 'instagram':
-        return settings?.instagram_url || 'https://instagram.com/yourpage';
+        return settings?.instagram_url || 'https://instagram.com/LandSpice25';
       case 'youtube':
-        return settings?.youtube_url || 'https://youtube.com/@yourchannel';
+        return settings?.youtube_url || 'https://youtube.com/@LandSpice';
       case 'tiktok':
-        return settings?.tiktok_url || 'https://tiktok.com/@yourpage';
+        return settings?.tiktok_url || 'https://tiktok.com/@LandSpice';
       case 'twitter':
-        return settings?.twitter_url || 'https://twitter.com/yourpage';
+        return settings?.twitter_url || 'https://x.com/LandSpice25';
       case 'facebook_channel':
-        return settings?.facebook_channel_url || 'https://facebook.com/yourchannel';
+        return settings?.facebook_channel_url || 'https://whatsapp.com/channel/0029Vb62xmZC6ZvZa3u0Yn0C';
       default:
         return '#';
     }
@@ -46,15 +52,11 @@ export default function SocialActions({ participant, settings, onProgressUpdate 
   // معالجة المتابعة
   const handleFollow = async (platformId: string) => {
     const result = await updateProgress(platformId, 'follow');
-    
+
     if (result.success && result.data) {
-      // تحديث بيانات المشارك
-      const updatedParticipant = {
-        ...participant,
-        progress: result.data.progress || participant.progress,
-        [`${platformId}_followed`]: true
-      };
-      onProgressUpdate(updatedParticipant);
+      // البيانات المحلية يتم تحديثها تلقائياً بواسطة الـ hook
+      // يمكن للمكون الأب الوصول إلى البيانات المحدثة من خلال currentParticipant
+      console.log('تم تحديث التقدم بنجاح:', result.data);
     }
   };
 
@@ -64,25 +66,50 @@ export default function SocialActions({ participant, settings, onProgressUpdate 
       // تحديث عدد المشاركات
       const result = await updateProgress(platformId, 'share');
       if (result.success && result.data) {
-        const updatedParticipant = {
-          ...participant,
-          shares: result.data.shares || participant.shares + 1
-        };
-        onProgressUpdate(updatedParticipant);
+        // البيانات المحلية يتم تحديثها تلقائياً بواسطة الـ hook
+        console.log('تم تحديث المشاركة بنجاح:', result.data);
       }
     } catch (error) {
       console.error('Error updating share count:', error);
     }
   };
 
+  // عرض رسالة خطأ إذا كان هناك خطأ في الـ hook
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-red-600 mb-4">
+          <p className="text-lg font-semibold">حدث خطأ في تحديث التقدم</p>
+          <p className="text-sm">{error}</p>
+        </div>
+        <button
+          onClick={() => window.location.reload()}
+          className="btn btn-secondary"
+        >
+          إعادة تحميل الصفحة
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Progress Tracker */}
-      <ProgressTracker 
+      <ProgressTracker
         completedCount={completedCount}
         totalCount={6}
         progressPercentage={progressPercentage}
       />
+
+      {/* Loading indicator when updating */}
+      {isUpdating && (
+        <div className="text-center py-4">
+          <div className="inline-flex items-center gap-2 text-blue-600">
+            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-sm font-medium">جاري تحديث التقدم...</span>
+          </div>
+        </div>
+      )}
 
       {/* Social Media Follow Section */}
       <div className="card">

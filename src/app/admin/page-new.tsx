@@ -10,7 +10,10 @@ import {
   TrendingUp,
   Download,
   LogOut,
-  Send
+  Send,
+  CheckCircle,
+  Share2,
+  Link as LinkIcon
 } from 'lucide-react';
 import { Participant, ContestStats } from '@/types';
 import StatsCard from '@/components/admin/StatsCard';
@@ -185,30 +188,30 @@ export default function AdminDashboard() {
               <StatsCard
                 title="إجمالي المشاركين"
                 value={stats.total}
-                icon="users"
+                icon={Users}
                 color="blue"
-                trend={12}
+                trend={{ value: 12, isPositive: true }}
               />
               <StatsCard
                 title="مكتملين 100%"
                 value={stats.completed}
-                icon="check"
+                icon={CheckCircle}
                 color="green"
-                trend={8}
+                trend={{ value: 8, isPositive: true }}
               />
               <StatsCard
                 title="إجمالي المشاركات"
                 value={stats.total_shares}
-                icon="share"
+                icon={Share2}
                 color="orange"
-                trend={15}
+                trend={{ value: 15, isPositive: true }}
               />
               <StatsCard
                 title="إجمالي الإحالات"
                 value={stats.total_referrals}
-                icon="link"
+                icon={LinkIcon}
                 color="purple"
-                trend={10}
+                trend={{ value: 10, isPositive: true }}
               />
             </div>
 
@@ -217,7 +220,6 @@ export default function AdminDashboard() {
               <h3 className="text-xl font-bold text-gray-900 mb-6">المشاركون الجدد</h3>
               <ParticipantsList 
                 participants={participants.slice(0, 10)}
-                onRefresh={loadData}
               />
             </div>
           </div>
@@ -232,24 +234,37 @@ export default function AdminDashboard() {
         {activeTab === 'participants' && (
           <div className="space-y-6">
             <SearchFilter
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              filterProgress={filterProgress}
-              onProgressFilterChange={setFilterProgress}
-              filterCity={filterCity}
-              onCityFilterChange={setFilterCity}
-              cities={cities}
+              onSearch={setSearchTerm}
+              onFilter={(filters) => {
+                setFilterProgress(filters.progress || 'all');
+                setFilterCity(filters.city || 'all');
+              }}
             />
             <ParticipantsList 
               participants={filteredParticipants}
-              onRefresh={loadData}
             />
           </div>
         )}
 
         {/* Draw Tab */}
         {activeTab === 'draw' && (
-          <DrawSystem onDrawComplete={loadData} />
+          <DrawSystem 
+            participants={participants.filter(p => p.progress >= 100)}
+            onDraw={async (count) => {
+              const eligible = participants.filter(p => p.progress >= 100);
+              const shuffled = [...eligible].sort(() => Math.random() - 0.5);
+              return shuffled.slice(0, count);
+            }}
+            onSave={async (winners) => {
+              await fetch('/api/winners', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ winners })
+              });
+              await loadData();
+            }}
+          />
         )}
 
         {/* Publish Tab */}
@@ -259,7 +274,28 @@ export default function AdminDashboard() {
 
         {/* Settings Tab */}
         {activeTab === 'settings' && (
-          <SettingsPanel onSave={loadData} />
+          <SettingsPanel 
+            initialSettings={{
+              contest_title: '',
+              prize_description: '',
+              end_date: '',
+              facebook_url: '',
+              instagram_url: '',
+              youtube_url: '',
+              tiktok_url: '',
+              twitter_url: '',
+              whatsapp_channel_url: ''
+            }}
+            onSave={async (settings) => {
+              await fetch('/api/social-links', {
+                method: 'PUT',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+              });
+              await loadData();
+            }} 
+          />
         )}
       </div>
     </div>

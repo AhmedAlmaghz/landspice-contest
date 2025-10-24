@@ -3,7 +3,7 @@ import { participantQueries } from '@/lib/database';
 
 export async function GET() {
   try {
-    const participants = participantQueries.getAll();
+    const participants = participantQueries.getAll.all() as any[];
     
     // إنشاء CSV
     const headers = [

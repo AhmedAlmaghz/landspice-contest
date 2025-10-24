@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Share2, Check, Loader2 } from 'lucide-react';
 import { shareOnPlatform, getCustomShareMessage } from '@/lib/shareUtils';
 import { SocialPlatformData } from '@/lib/socialPlatforms';
@@ -19,11 +19,25 @@ export default function ShareButton({
   onShare,
   compact = false 
 }: ShareButtonProps) {
-  const { showSuccess, showInfo } = useNotification();
+  const { showSuccess, showInfo, showError } = useNotification();
   const [isSharing, setIsSharing] = useState(false);
   const [justShared, setJustShared] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const lastShareTime = useRef<number>(0);
 
   const handleShare = async () => {
+    // Debouncing: منع المشاركة المتكررة السريعة
+    const now = Date.now();
+    if (now - lastShareTime.current < 2000) {
+      showInfo('⏳ يرجى الانتظار قليلاً قبل المشاركة مرة أخرى');
+      return;
+    }
+    lastShareTime.current = now;
+
+    // تأثير بصري
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 300);
+
     setIsSharing(true);
     
     try {
@@ -39,9 +53,9 @@ export default function ShareButton({
         
         // إشعار للمنصات التي تتطلب نسخ يدوي
         if (result.method === 'clipboard') {
-          showInfo(`✅ تم نسخ الرابط! ${getCustomShareMessage(platform.id)}`);
+          showInfo(`📋 تم نسخ الرابط بنجاح! ${getCustomShareMessage(platform.id)}`);
         } else {
-          showSuccess(`🎉 تمت مشاركة المسابقة على ${platform.nameAr} بنجاح!`);
+          showSuccess(`🎉 رائع! تمت مشاركة المسابقة على ${platform.nameAr} بنجاح!`);
         }
         
         // استدعاء callback
@@ -51,7 +65,8 @@ export default function ShareButton({
       }
     } catch (error) {
       console.error('Error sharing:', error);
-      alert('حدث خطأ أثناء المشاركة. يرجى المحاولة مرة أخرى.');
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ غير متوقع';
+      showError(`❌ ${errorMessage}. يرجى المحاولة مرة أخرى.`);
     } finally {
       setIsSharing(false);
     }
@@ -62,13 +77,13 @@ export default function ShareButton({
       <button
         onClick={handleShare}
         disabled={isSharing}
-        className={`btn bg-gradient-to-r ${platform.gradient} text-white disabled:opacity-50 transition-all duration-300`}
+        className={`btn bg-gradient-to-r ${platform.gradient} text-white disabled:opacity-50 hover:scale-105 hover:shadow-lg transition-all duration-300 ${isAnimating ? 'scale-95' : 'scale-100'}`}
         title={`مشاركة على ${platform.nameAr}`}
       >
         {isSharing ? (
           <Loader2 className="w-4 h-4 animate-spin" />
         ) : justShared ? (
-          <Check className="w-4 h-4" />
+          <Check className="w-4 h-4 animate-bounce" />
         ) : (
           <Share2 className="w-4 h-4" />
         )}
@@ -80,11 +95,11 @@ export default function ShareButton({
   }
 
   return (
-    <div className="card hover:scale-105 transition-transform duration-300">
+    <div className={`card hover:scale-105 transition-all duration-300 ${isAnimating ? 'scale-95' : 'scale-100'}`}>
       {/* Platform Icon */}
       <div className="flex justify-center mb-4">
         <div 
-          className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg bg-gradient-to-br ${platform.gradient}`}
+          className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg bg-gradient-to-br ${platform.gradient} transition-all duration-300 hover:shadow-xl ${isAnimating ? 'animate-pulse' : ''}`}
         >
           <Share2 className="w-8 h-8" />
         </div>
@@ -104,7 +119,7 @@ export default function ShareButton({
       <button
         onClick={handleShare}
         disabled={isSharing}
-        className={`btn w-full bg-gradient-to-r ${platform.gradient} text-white disabled:opacity-50`}
+        className={`btn w-full bg-gradient-to-r ${platform.gradient} text-white disabled:opacity-50 hover:scale-105 hover:shadow-xl transition-all duration-300`}
       >
         {isSharing ? (
           <>
@@ -113,8 +128,8 @@ export default function ShareButton({
           </>
         ) : justShared ? (
           <>
-            <Check className="w-4 h-4 ml-2" />
-            تمت المشاركة!
+            <Check className="w-4 h-4 ml-2 animate-bounce" />
+            ✅ تمت المشاركة!
           </>
         ) : (
           <>

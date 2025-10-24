@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Facebook, Instagram, Youtube, Twitter, ExternalLink, CheckCircle, Loader2, Video } from 'lucide-react';
 import { SocialPlatformData } from '@/lib/socialPlatforms';
 import { useNotification } from '@/contexts/NotificationContext';
@@ -21,6 +21,8 @@ export default function SocialFollowButton({
   const { showSuccess, showError } = useNotification();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const lastClickTime = useRef<number>(0);
 
   const getIcon = () => {
     const iconClass = "w-6 h-6";
@@ -43,6 +45,17 @@ export default function SocialFollowButton({
   const handleClick = async () => {
     if (isFollowed) return;
 
+    // Debouncing: منع النقرات المتكررة السريعة
+    const now = Date.now();
+    if (now - lastClickTime.current < 1000) {
+      return;
+    }
+    lastClickTime.current = now;
+
+    // تأثير بصري
+    setIsAnimating(true);
+    setTimeout(() => setIsAnimating(false), 300);
+
     // فتح الرابط في نافذة جديدة
     window.open(url, '_blank', 'width=800,height=600');
     
@@ -57,10 +70,11 @@ export default function SocialFollowButton({
     try {
       await onFollow();
       setShowConfirmation(false);
-      showSuccess(`✅ رائع! تمت متابعة ${platform.nameAr} بنجاح`);
+      showSuccess(`🎉 رائع! تمت متابعة ${platform.nameAr} بنجاح وزادت نسبة تقدمك!`);
     } catch (error) {
       console.error('Error confirming follow:', error);
-      showError(`حدث خطأ أثناء تأكيد المتابعة. يرجى المحاولة مرة أخرى.`);
+      const errorMessage = error instanceof Error ? error.message : 'حدث خطأ غير متوقع';
+      showError(`❌ ${errorMessage}. يرجى المحاولة مرة أخرى.`);
     } finally {
       setIsLoading(false);
     }
@@ -71,11 +85,11 @@ export default function SocialFollowButton({
   };
 
   return (
-    <div className="social-card">
+    <div className={`social-card transition-all duration-300 ${isAnimating ? 'scale-95' : 'scale-100'}`}>
       {/* Platform Icon */}
       <div className="flex justify-center mb-4">
         <div 
-          className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-lg bg-gradient-to-br ${platform.gradient} transform transition-transform hover:scale-110`}
+          className={`w-20 h-20 rounded-full flex items-center justify-center text-white shadow-lg bg-gradient-to-br ${platform.gradient} transform transition-all duration-300 hover:scale-110 hover:shadow-xl ${isAnimating ? 'animate-pulse' : ''}`}
         >
           {getIcon()}
         </div>
@@ -104,7 +118,8 @@ export default function SocialFollowButton({
       {!isFollowed && !showConfirmation && (
         <button
           onClick={handleClick}
-          className={`btn w-full bg-gradient-to-r ${platform.gradient} text-white hover:shadow-xl transition-all duration-300`}
+          disabled={isAnimating}
+          className={`btn w-full bg-gradient-to-r ${platform.gradient} text-white hover:shadow-xl hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed`}
         >
           <ExternalLink className="w-4 h-4 ml-2" />
           {platform.followText}
@@ -113,10 +128,10 @@ export default function SocialFollowButton({
 
       {/* Followed Badge */}
       {isFollowed && (
-        <div className="w-full p-3 bg-green-50 border-2 border-green-200 rounded-lg text-center">
-          <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-1" />
+        <div className="w-full p-3 bg-green-50 border-2 border-green-200 rounded-lg text-center animate-fade-in">
+          <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-1 animate-bounce" />
           <span className="text-sm font-semibold text-green-700">
-            تمت المتابعة بنجاح
+            ✅ تمت المتابعة بنجاح
           </span>
         </div>
       )}

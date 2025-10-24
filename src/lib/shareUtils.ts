@@ -77,26 +77,50 @@ export function generateLinkedInShareUrl(url: string): string {
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch (error) {
-    console.error('Error copying to clipboard:', error);
-    
-    // Fallback method
+    // محاولة استخدام Clipboard API أولاً (الطريقة الحديثة)
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (clipboardError) {
+        console.warn('Clipboard API failed:', clipboardError);
+      }
+    }
+
+    // Fallback method باستخدام document.execCommand
     try {
       const textArea = document.createElement('textarea');
       textArea.value = text;
       textArea.style.position = 'fixed';
       textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      textArea.style.opacity = '0';
+      textArea.readOnly = true;
+
       document.body.appendChild(textArea);
+
+      // محاولة جعل العنصر مركزاً
+      textArea.focus();
       textArea.select();
+
       const success = document.execCommand('copy');
+
+      // تنظيف العنصر
       document.body.removeChild(textArea);
-      return success;
+
+      if (success) {
+        return true;
+      }
+
+      throw new Error('execCommand failed');
+
     } catch (fallbackError) {
       console.error('Fallback copy failed:', fallbackError);
       return false;
     }
+  } catch (error) {
+    console.error('Error copying to clipboard:', error);
+    return false;
   }
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { participantQueries, socialActionQueries } from '@/lib/database';
+import { participantQueries } from '@/lib/database';
 import { RegistrationData, ProgressUpdate } from '@/types';
 import { validateRegistrationData, sanitizeInput, generateReferralCode } from '@/lib/validation';
 
@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Check if participant already exists
-    const existingParticipant = participantQueries.findByEmail.get(sanitizedData.email);
+    // Check if participant already exists (using contest_id 1 as default)
+    const existingParticipant = participantQueries.findByEmail.get(sanitizedData.email, 1);
     if (existingParticipant) {
       return NextResponse.json(
         { error: 'البريد الإلكتروني مسجل مسبقاً. يرجى استخدام بريد آخر أو تسجيل الدخول.' },
@@ -53,26 +53,40 @@ export async function POST(request: NextRequest) {
       attempts++;
     }
     
-    // Insert participant
-    const result = participantQueries.create.run(
-      sanitizedData.name,
-      sanitizedData.email,
-      sanitizedData.phone,
-      sanitizedData.city,
-      referralCode,
-      sanitizedData.referredBy || null
-    );
-
-    const participantId = result.lastInsertRowid as number;
-
-    return NextResponse.json({
-      success: true,
-      message: 'تم التسجيل بنجاح! يمكنك الآن البدء في المشاركة.',
-      participant: {
-        id: participantId,
-        referral_code: referralCode
+    // Insert participant (using contest_id from data or 1 as default)
+    // Note: contest_id must exist in contests table
+    const contestId = (data as any).contest_id || 1;
+    
+    try {
+      const result = participantQueries.create.run(
+        contestId,
+        sanitizedData.name,
+        sanitizedData.email,
+        sanitizedData.phone,
+        sanitizedData.city,
+        referralCode,
+        sanitizedData.referredBy || null
+      );
+      
+      const participantId = result.lastInsertRowid as number;
+      
+      return NextResponse.json({
+        success: true,
+        participant: {
+          id: participantId,
+          referral_code: referralCode
+        }
+      });
+    } catch (dbError: any) {
+      // If contest doesn't exist, return error
+      if (dbError.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+        return NextResponse.json(
+          { error: 'المسابقة غير موجودة. يرجى إنشاء مسابقة أولاً.' },
+          { status: 400 }
+        );
       }
-    });
+      throw dbError;
+    }
   } catch (error) {
     console.error('Error creating participant:', error);
     return NextResponse.json(

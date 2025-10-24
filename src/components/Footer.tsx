@@ -22,10 +22,30 @@ export default function Footer() {
           {/* Quick Links */}
           <div>
             <h4 className="text-lg font-semibold mb-4">روابط سريعة</h4>
-            <ul className="space-y-2">
+            <ul className="space-y-2 text-sm">
               <li>
                 <a href="/" className="text-purple-200 hover:text-white transition-colors">
                   الصفحة الرئيسية
+                </a>
+              </li>
+              <li>
+                <a href="/register" className="text-purple-200 hover:text-white transition-colors">
+                  التسجيل
+                </a>
+              </li>
+              <li>
+                <a href="/register/company" className="text-purple-200 hover:text-white transition-colors">
+                  تسجيل الشركة
+                </a>
+              </li>
+              <li>
+                <a href="/register/participant" className="text-purple-200 hover:text-white transition-colors">
+                  تسجيل المشارك
+                </a>
+              </li>
+              <li>
+                <a href="/admin/login" className="text-purple-200 hover:text-white transition-colors">
+                  دخول الإدارة
                 </a>
               </li>
               <li>
@@ -33,9 +53,90 @@ export default function Footer() {
                   لوحة الإدارة
                 </a>
               </li>
+            </ul>
+          </div>
+
+          {/* Admin Links */}
+          <div>
+            <h4 className="text-lg font-semibold mb-4">الإدارة</h4>
+            <ul className="space-y-2 text-sm">
               <li>
-                <a href="#rules" className="text-purple-200 hover:text-white transition-colors">
-                  شروط المسابقة
+                <a href="/admin/companies" className="text-purple-200 hover:text-white transition-colors">
+                  إدارة الشركات
+                </a>
+              </li>
+              <li>
+                <a href="/admin/contests" className="text-purple-200 hover:text-white transition-colors">
+                  إدارة المسابقات
+                </a>
+              </li>
+              <li>
+                <a href="/admin/platforms" className="text-purple-200 hover:text-white transition-colors">
+                  إدارة الشبكات
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Company Links */}
+          <div>
+            <h4 className="text-lg font-semibold mb-4">الشركة</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <a href="/company/login" className="text-purple-200 hover:text-white transition-colors">
+                  دخول الشركة
+                </a>
+              </li>
+              <li>
+                <a href="/company/dashboard" className="text-purple-200 hover:text-white transition-colors">
+                  لوحة الشركة
+                </a>
+              </li>
+              <li>
+                <a href="/company/contests" className="text-purple-200 hover:text-white transition-colors">
+                  المسابقات
+                </a>
+              </li>
+              <li>
+                <a href="/company/platforms" className="text-purple-200 hover:text-white transition-colors">
+                  الشبكات
+                </a>
+              </li>
+              <li>
+                <a href="/company/participants" className="text-purple-200 hover:text-white transition-colors">
+                  المشاركون
+                </a>
+              </li>
+              <li>
+                <a href="/company/analytics" className="text-purple-200 hover:text-white transition-colors">
+                  التحليلات
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Participant Links */}
+          <div>
+            <h4 className="text-lg font-semibold mb-4">المشارك</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <a href="/participant/dashboard" className="text-purple-200 hover:text-white transition-colors">
+                  لوحة التحكم
+                </a>
+              </li>
+              <li>
+                <a href="/participant/contests" className="text-purple-200 hover:text-white transition-colors">
+                  المسابقات
+                </a>
+              </li>
+              <li>
+                <a href="/participant/profile" className="text-purple-200 hover:text-white transition-colors">
+                  الملف الشخصي
+                </a>
+              </li>
+              <li>
+                <a href="/participant/referrals" className="text-purple-200 hover:text-white transition-colors">
+                  الإحالات
                 </a>
               </li>
             </ul>

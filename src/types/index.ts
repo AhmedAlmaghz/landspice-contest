@@ -9,12 +9,15 @@ export interface Participant {
   registration_date: string;
   progress: number;
   shares: number;
-  facebook_followed: boolean;
-  instagram_followed: boolean;
-  youtube_followed: boolean;
-  tiktok_followed: boolean;
-  twitter_followed: boolean;
-  facebook_channel_followed: boolean;
+  total_actions?: number;
+  total_shares?: number;
+  total_referrals?: number;
+  facebook_followed?: boolean;
+  instagram_followed?: boolean;
+  youtube_followed?: boolean;
+  tiktok_followed?: boolean;
+  twitter_followed?: boolean;
+  facebook_channel_followed?: boolean;
 }
 
 export interface SocialAction {

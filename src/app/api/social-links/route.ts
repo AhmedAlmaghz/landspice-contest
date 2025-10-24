@@ -1,29 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { settingsQueries } from '@/lib/database';
+import { contestQueries } from '@/lib/database';
 import { verifySessionToken } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const settings = settingsQueries.get.get(1) as any;
+    // جلب أول مسابقة نشطة
+    const contest = contestQueries.getActive.all('active')?.[0] as any;
 
-    if (!settings) {
+    if (!contest) {
       return NextResponse.json(
-        { error: 'لم يتم العثور على إعدادات المسابقة' },
+        { error: 'لم يتم العثور على مسابقة نشطة' },
         { status: 404 }
       );
     }
 
-    // إرجاع روابط الشبكات الاجتماعية فقط
-    const socialLinks = {
-      facebook: settings.facebook_url,
-      instagram: settings.instagram_url,
-      youtube: settings.youtube_url,
-      tiktok: settings.tiktok_url,
-      twitter: settings.twitter_url,
-      facebook_channel: settings.facebook_channel_url,
-    };
-
-    return NextResponse.json({ socialLinks });
+    // إرجاع بيانات المسابقة
+    return NextResponse.json({ 
+      settings: {
+        contest_title: contest.title,
+        prize_description: contest.prize_description,
+        end_date: contest.end_date,
+      },
+      socialLinks: {}
+    });
   } catch (error) {
     console.error('Error fetching social links:', error);
     return NextResponse.json(
@@ -35,61 +34,32 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    // التحقق من جلسة الإدارة
-    const adminToken = request.cookies.get('admin_session')?.value;
-
-    if (!adminToken) {
+    const data = await request.json();
+    
+    // الحصول على أول مسابقة نشطة كمسابقة افتراضية
+    const contest = contestQueries.getActive.all('active')?.[0] as any;
+    
+    if (!contest) {
       return NextResponse.json(
-        { error: 'غير مصرح لك بالوصول' },
-        { status: 401 }
+        { error: 'لم يتم العثور على مسابقة نشطة' },
+        { status: 404 }
       );
     }
 
-    const session = verifySessionToken(adminToken);
-
-    if (!session || !('isAdmin' in session) || !session.isAdmin) {
-      return NextResponse.json(
-        { error: 'غير مصرح لك بالوصول' },
-        { status: 401 }
-      );
-    }
-
-    const {
-      facebook_url,
-      instagram_url,
-      youtube_url,
-      tiktok_url,
-      twitter_url,
-      facebook_channel_url,
-      contest_title,
-      prize_description,
-      contest_end_date,
-    } = await request.json();
-
-    // التحقق من صحة البيانات
-    if (!facebook_url || !instagram_url || !youtube_url || !tiktok_url || !twitter_url || !facebook_channel_url) {
-      return NextResponse.json(
-        { error: 'جميع روابط الشبكات الاجتماعية مطلوبة' },
-        { status: 400 }
-      );
-    }
-
-    // تحديث الإعدادات
-    settingsQueries.update.run(
-      contest_title || 'مسابقة المتابعة والمشاركة',
-      contest_end_date || null,
-      prize_description || 'جوائز قيمة للفائزين',
-      facebook_url,
-      instagram_url,
-      youtube_url,
-      tiktok_url,
-      twitter_url,
-      facebook_channel_url
+    // تحديث المسابقة بالبيانات المرسلة أو الافتراضية
+    contestQueries.update.run(
+      data.contest_title || data.title || contest.title,
+      data.description || '',
+      'active',
+      data.end_date || contest.end_date || null,
+      data.prize_description || contest.prize_description || '',
+      data.rules || '',
+      contest.id
     );
 
     return NextResponse.json({
       success: true,
-      message: 'تم تحديث إعدادات المسابقة بنجاح',
+      message: 'تم تحديث الإعدادات بنجاح',
     });
   } catch (error) {
     console.error('Error updating settings:', error);

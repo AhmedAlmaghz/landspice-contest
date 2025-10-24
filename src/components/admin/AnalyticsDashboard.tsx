@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { TrendingUp, Users, Share2, UserPlus, Calendar, MapPin } from 'lucide-react';
+import { Participant, ContestStats } from '@/types';
 
 interface AnalyticsData {
   totalParticipants: number;
@@ -13,13 +14,24 @@ interface AnalyticsData {
   dailyRegistrations: { date: string; count: number }[];
 }
 
-export default function AnalyticsDashboard() {
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
+interface AnalyticsDashboardProps {
+  participants?: Participant[];
+  stats?: ContestStats | null;
+  initialData?: AnalyticsData;
+}
+
+export default function AnalyticsDashboard({ participants = [], stats = null, initialData }: AnalyticsDashboardProps) {
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(initialData || null);
+  const [loading, setLoading] = useState(!initialData);
 
   useEffect(() => {
-    loadAnalytics();
-  }, []);
+    if (initialData) {
+      setAnalytics(initialData);
+      setLoading(false);
+    } else {
+      loadAnalytics();
+    }
+  }, [initialData]);
 
   const loadAnalytics = async () => {
     try {

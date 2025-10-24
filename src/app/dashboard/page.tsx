@@ -32,8 +32,15 @@ export default function UserDashboard() {
       // Get participant from localStorage
       const saved = localStorage.getItem('contestParticipant');
       if (saved) {
-        const data = JSON.parse(saved);
-        setParticipant(data);
+        try {
+          const data = JSON.parse(saved);
+          setParticipant(data);
+        } catch (parseError) {
+          console.error('Error parsing participant data:', parseError);
+          localStorage.removeItem('contestParticipant');
+          router.push('/');
+          return;
+        }
         
         // Refresh from API
         const response = await fetch(`/api/participants?email=${data.email}`);
@@ -211,14 +218,19 @@ export default function UserDashboard() {
                   shareMethod: 'direct'
                 }} referralCode={participant.referral_code} compact />
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const url = `${window.location.origin}?ref=${participant.referral_code}`;
-                    navigator.clipboard.writeText(url);
-                    alert('تم نسخ الرابط!');
+                    try {
+                      await navigator.clipboard.writeText(url);
+                      // سيتم عرض Toast إذا كان NotificationContext متاح
+                      console.log('تم نسخ الرابط بنجاح');
+                    } catch (err) {
+                      console.error('فشل نسخ الرابط:', err);
+                    }
                   }}
-                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-semibold transition-colors"
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 hover:scale-105 text-white rounded-lg font-semibold transition-all duration-300"
                 >
-                  نسخ
+                  📋 نسخ
                 </button>
               </div>
             </div>

@@ -1,14 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { participantQueries, socialActionQueries } from '@/lib/database';
+import { participantQueries } from '@/lib/database';
 import { ProgressUpdate, Participant } from '@/types';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const participantId = parseInt(params.id);
-    const data: ProgressUpdate = await request.json();
+    const { id } = await params;
+    const participantId = parseInt(id);
+
+    if (isNaN(participantId)) {
+      return NextResponse.json(
+        { error: 'معرف المشارك غير صحيح' },
+        { status: 400 }
+      );
+    }
+
+    // التحقق من وجود محتوى JSON في الطلب
+    let data: ProgressUpdate;
+    try {
+      const body = await request.text();
+      if (!body.trim()) {
+        return NextResponse.json(
+          { error: 'لا يوجد بيانات في الطلب' },
+          { status: 400 }
+        );
+      }
+      data = JSON.parse(body);
+    } catch (jsonError) {
+      return NextResponse.json(
+        { error: 'بيانات JSON غير صحيحة' },
+        { status: 400 }
+      );
+    }
     
     // التحقق من صحة البيانات
     if (!data.platform || !data.action) {
@@ -43,8 +68,7 @@ export async function POST(
       );
     }
 
-    // Record social action
-    socialActionQueries.create.run(participantId, data.platform, data.action);
+    // Social action recorded (can be tracked in participant_actions table if needed)
 
     // Update progress based on platform and action
     let progress = participant.progress;
@@ -106,15 +130,12 @@ export async function POST(
     progress = Math.min(progress, 100);
 
     // Update participant progress
+    // New schema: progress, total_actions, total_shares, id
+    const totalActions = (participant.total_actions || 0) + 1;
     participantQueries.updateProgress.run(
       progress,
+      totalActions,
       shares,
-      data.platform === 'facebook' && data.action === 'follow' ? true : participant.facebook_followed,
-      data.platform === 'instagram' && data.action === 'follow' ? true : participant.instagram_followed,
-      data.platform === 'youtube' && data.action === 'follow' ? true : participant.youtube_followed,
-      data.platform === 'tiktok' && data.action === 'follow' ? true : participant.tiktok_followed,
-      data.platform === 'twitter' && data.action === 'follow' ? true : participant.twitter_followed,
-      data.platform === 'facebook_channel' && data.action === 'follow' ? true : participant.facebook_channel_followed,
       participantId
     );
 

@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  BarChart3, 
-  Users, 
-  Gift, 
-  Settings, 
+import {
+  BarChart3,
+  Users,
+  Gift,
+  Settings,
   TrendingUp,
   Download,
   LogOut,
@@ -35,15 +35,64 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProgress, setFilterProgress] = useState('all');
   const [filterCity, setFilterCity] = useState('all');
+  const [adminSession, setAdminSession] = useState<boolean>(false);
+  const [settings, setSettings] = useState<any>(null);
 
   useEffect(() => {
-    loadData();
+    checkAdminSession();
   }, []);
+
+  const checkAdminSession = async () => {
+    try {
+      // محاولة الوصول إلى API محمي للتحقق من الجلسة
+      const response = await fetch('/api/auth/session?admin=true', {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated && data.session?.isAdmin) {
+          setAdminSession(true);
+          loadData();
+          loadSettings();
+        } else {
+          // جلسة غير صالحة أو غير موجودة
+          redirectToLogin();
+        }
+      } else {
+        // خطأ في الاستجابة
+        redirectToLogin();
+      }
+    } catch (error) {
+      console.error('Session check failed:', error);
+      redirectToLogin();
+    }
+  };
+
+  const redirectToLogin = () => {
+    // إعادة توجيه إلى صفحة تسجيل الدخول
+    window.location.href = '/admin/login';
+  };
+
+  const loadSettings = async () => {
+    try {
+      const response = await fetch('/api/social-links', {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data.settings || null);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
 
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       // Load participants
       const participantsRes = await fetch('/api/participants');
       const participantsData = await participantsRes.json();
@@ -52,7 +101,10 @@ export default function AdminDashboard() {
       // Load stats
       const statsRes = await fetch('/api/stats');
       const statsData = await statsRes.json();
-      setStats(statsData.stats);
+      setStats({
+        ...statsData.stats,
+        dailyRegistrations: statsData.dailyRegistrations || []
+      });
 
       // Load winners
       const winnersRes = await fetch('/api/draw');
@@ -106,6 +158,62 @@ export default function AdminDashboard() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const exportWinners = () => {
+    if (winners.length === 0) {
+      alert('لا يوجد فائزون لتصديرهم');
+      return;
+    }
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "المركز,الاسم,البريد الإلكتروني,الهاتف,المدينة\n"
+      + winners.map((w, index) => 
+        `${index + 1},${w.name},${w.email},${w.phone},${w.city}`
+      ).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "contest_winners.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const announceWinners = async () => {
+    if (winners.length === 0) {
+      alert('لا يوجد فائزون للإعلان عنهم');
+      return;
+    }
+
+    if (!confirm('هل أنت متأكد من إعلان النتائج؟ سيتم نشر أسماء الفائزين.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/publish', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'winners',
+          winners: winners
+        }),
+      });
+
+      if (response.ok) {
+        alert('تم إعلان النتائج بنجاح!');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'حدث خطأ في إعلان النتائج');
+      }
+    } catch (error) {
+      console.error('Error announcing winners:', error);
+      alert('حدث خطأ في إعلان النتائج');
+    }
   };
 
   const handleLogout = async () => {
@@ -308,7 +416,22 @@ export default function AdminDashboard() {
                       </td>
                       <td className="py-3 px-4">{participant.shares}</td>
                       <td className="py-3 px-4">
-                        <button className="btn btn-secondary text-sm px-3 py-1">
+                        <button 
+                          onClick={() => {
+                            alert(
+                              `معلومات المشارك:\n\n` +
+                              `الاسم: ${participant.name}\n` +
+                              `البريد الإلكتروني: ${participant.email}\n` +
+                              `الهاتف: ${participant.phone}\n` +
+                              `المدينة: ${participant.city}\n` +
+                              `كود الإحالة: ${participant.referral_code}\n` +
+                              `تاريخ التسجيل: ${new Date(participant.registration_date).toLocaleDateString('ar-SA')}\n` +
+                              `التقدم: ${participant.progress}%\n` +
+                              `المشاركات: ${participant.shares}`
+                            );
+                          }}
+                          className="btn btn-secondary text-sm px-3 py-1"
+                        >
                           <Eye className="w-4 h-4 mr-1" />
                           عرض
                         </button>
@@ -376,11 +499,17 @@ export default function AdminDashboard() {
                   ))}
                 </div>
                 <div className="mt-6 flex gap-4 justify-center">
-                  <button className="btn btn-success">
+                  <button 
+                    onClick={announceWinners}
+                    className="btn btn-success"
+                  >
                     <TrendingUp className="w-4 h-4 mr-2" />
                     إعلان النتائج
                   </button>
-                  <button className="btn btn-secondary">
+                  <button 
+                    onClick={exportWinners}
+                    className="btn btn-secondary"
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     تصدير قائمة الفائزين
                   </button>
@@ -390,37 +519,79 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Analytics Tab */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6">
+            <AnalyticsDashboard
+              participants={participants}
+              stats={stats}
+              initialData={{
+                totalParticipants: stats?.total || 0,
+                newToday: participants.filter(p => {
+                  const today = new Date().toDateString();
+                  return new Date(p.registration_date).toDateString() === today;
+                }).length,
+                totalShares: stats?.total_shares || 0,
+                totalReferrals: stats?.total_referrals || 0,
+                completionRate: participants.length > 0 ? Math.round((participants.filter(p => p.progress >= 100).length / participants.length) * 100) : 0,
+                topCities: (stats as any)?.topCities || [],
+                dailyRegistrations: (stats as any)?.dailyRegistrations || []
+              }}
+            />
+          </div>
+        )}
+
+        {/* Publish Tab */}
+        {activeTab === 'publish' && (
+          <div className="space-y-6">
+            <PublishHistory />
+          </div>
+        )}
+
         {/* Settings Tab */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            <SettingsPanel
-              initialSettings={{
-                contest_title: 'مسابقة LandSpice',
-                prize_description: 'جوائز قيمة للفائزين',
-                end_date: '',
-                facebook_url: 'https://facebook.com/LandSpice25',
-                instagram_url: 'https://instagram.com/LandSpice25',
-                youtube_url: 'https://youtube.com/@LandSpice',
-                tiktok_url: 'https://tiktok.com/@LandSpice',
-                twitter_url: 'https://x.com/LandSpice25',
-                whatsapp_channel_url: 'https://whatsapp.com/channel/0029Vb62xmZC6ZvZa3u0Yn0C',
-              }}
-              onSave={async (settings) => {
-                const response = await fetch('/api/social-links', {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(settings),
-                });
+            {settings ? (
+              <SettingsPanel
+                initialSettings={{
+                  contest_title: settings.contest_title || 'مسابقة LandSpice',
+                  prize_description: settings.prize_description || 'جوائز قيمة للفائزين',
+                  end_date: settings.end_date || '',
+                  facebook_url: settings.facebook_url || 'https://facebook.com/LandSpice25',
+                  instagram_url: settings.instagram_url || 'https://instagram.com/LandSpice25',
+                  youtube_url: settings.youtube_url || 'https://youtube.com/@LandSpice',
+                  tiktok_url: settings.tiktok_url || 'https://tiktok.com/@LandSpice',
+                  twitter_url: settings.twitter_url || 'https://x.com/LandSpice25',
+                  whatsapp_channel_url: settings.whatsapp_channel_url || 'https://whatsapp.com/channel/0029Vb62xmZC6ZvZa3u0Yn0C'
+                }}
+                onSave={async (updatedSettings) => {
+                  const response = await fetch('/api/social-links', {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updatedSettings),
+                  });
 
-                if (!response.ok) {
-                  throw new Error('فشل في حفظ الإعدادات');
-                }
-              }}
-            />
+                  if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'فشل في حفظ الإعدادات');
+                  }
+
+                  // إعادة تحميل الإعدادات بعد الحفظ
+                  await loadSettings();
+                }}
+              />
+            ) : (
+              <div className="card text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">جاري تحميل الإعدادات...</p>
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
   );
+}

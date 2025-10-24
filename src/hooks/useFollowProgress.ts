@@ -7,20 +7,21 @@ import { Participant } from '@/types';
 export function useFollowProgress(participant: Participant) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localParticipant, setLocalParticipant] = useState<Participant>(participant);
 
   /**
    * حساب عدد المنصات المكتملة
    */
   const getCompletedCount = useCallback(() => {
     let count = 0;
-    if (participant.facebook_followed) count++;
-    if (participant.instagram_followed) count++;
-    if (participant.youtube_followed) count++;
-    if (participant.tiktok_followed) count++;
-    if (participant.twitter_followed) count++;
-    if (participant.facebook_channel_followed) count++;
+    if (localParticipant.facebook_followed) count++;
+    if (localParticipant.instagram_followed) count++;
+    if (localParticipant.youtube_followed) count++;
+    if (localParticipant.tiktok_followed) count++;
+    if (localParticipant.twitter_followed) count++;
+    if (localParticipant.facebook_channel_followed) count++;
     return count;
-  }, [participant]);
+  }, [localParticipant]);
 
   /**
    * حساب النسبة المئوية للتقدم
@@ -36,24 +37,31 @@ export function useFollowProgress(participant: Participant) {
   const isPlatformCompleted = useCallback((platformId: string): boolean => {
     switch (platformId) {
       case 'facebook':
-        return participant.facebook_followed;
+        return localParticipant.facebook_followed;
       case 'instagram':
-        return participant.instagram_followed;
+        return localParticipant.instagram_followed;
       case 'youtube':
-        return participant.youtube_followed;
+        return localParticipant.youtube_followed;
       case 'tiktok':
-        return participant.tiktok_followed;
+        return localParticipant.tiktok_followed;
       case 'twitter':
-        return participant.twitter_followed;
+        return localParticipant.twitter_followed;
       case 'facebook_channel':
-        return participant.facebook_channel_followed;
+        return localParticipant.facebook_channel_followed;
       default:
         return false;
     }
-  }, [participant]);
+  }, [localParticipant]);
 
   /**
-   * تحديث التقدم في الخادم
+   * تحديث البيانات المحلية بعد التحديث الناجح
+   */
+  const updateLocalParticipant = useCallback((updatedData: Partial<Participant>) => {
+    setLocalParticipant(prev => ({ ...prev, ...updatedData }));
+  }, []);
+
+  /**
+   * تحديث التقدم في الخادم مع Optimistic Updates
    */
   const updateProgress = useCallback(async (
     platformId: string,
@@ -62,8 +70,24 @@ export function useFollowProgress(participant: Participant) {
     setIsUpdating(true);
     setError(null);
 
+    // Optimistic Update: تحديث الواجهة فوراً قبل استجابة الخادم
+    const previousState = { ...localParticipant };
+    
+    if (action === 'follow') {
+      const optimisticUpdate: Partial<Participant> = {
+        progress: Math.min(localParticipant.progress + 16, 100),
+        [`${platformId}_followed` as keyof Participant]: true as any
+      };
+      updateLocalParticipant(optimisticUpdate);
+    } else if (action === 'share') {
+      const optimisticUpdate: Partial<Participant> = {
+        shares: localParticipant.shares + 1
+      };
+      updateLocalParticipant(optimisticUpdate);
+    }
+
     try {
-      const response = await fetch(`/api/participants/${participant.id}/progress`, {
+      const response = await fetch(`/api/participants/${localParticipant.id}/progress`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +101,24 @@ export function useFollowProgress(participant: Participant) {
       const data = await response.json();
 
       if (!response.ok) {
+        // التراجع عن Optimistic Update في حالة الفشل
+        setLocalParticipant(previousState);
         throw new Error(data.error || 'حدث خطأ في تحديث التقدم');
+      }
+
+      // تحديث بالبيانات الفعلية من الخادم
+      if (data.progress !== undefined || data.shares !== undefined || data.platformFollowed !== undefined) {
+        const updatedData: Partial<Participant> = {
+          progress: data.progress ?? localParticipant.progress,
+          shares: data.shares ?? localParticipant.shares,
+        };
+
+        // تحديث حالة المتابعة للمنصة المحددة
+        if (data.platformFollowed && action === 'follow') {
+          (updatedData as any)[`${platformId}_followed`] = true;
+        }
+
+        updateLocalParticipant(updatedData);
       }
 
       return { success: true, data };
@@ -88,14 +129,16 @@ export function useFollowProgress(participant: Participant) {
     } finally {
       setIsUpdating(false);
     }
-  }, [participant.id]);
+  }, [localParticipant, updateLocalParticipant]);
 
   return {
+    participant: localParticipant, // إرجاع البيانات المحلية المحدثة
     completedCount: getCompletedCount(),
     progressPercentage: getProgressPercentage(),
     isPlatformCompleted,
     updateProgress,
     isUpdating,
-    error
+    error,
+    updateLocalParticipant // تصدير الدالة للاستخدام الخارجي إذا لزم الأمر
   };
 }

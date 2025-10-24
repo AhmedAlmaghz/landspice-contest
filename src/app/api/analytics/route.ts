@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { participantQueries, settingsQueries } from '@/lib/database';
+import { participantQueries } from '@/lib/database';
 
 export async function GET() {
   try {
-    const participants = participantQueries.getAll();
+    const participants = participantQueries.getAll.all() as any[];
     
     // حساب الإحصائيات
     const today = new Date().toISOString().split('T')[0];
